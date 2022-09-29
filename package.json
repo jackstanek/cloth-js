@@ -1,8 +1,10 @@
 {
   "dependencies": {
     "gh-pages": "^4.0.0",
+    "html-webpack-plugin": "^5.5.0",
     "three": "^0.144.0",
-    "webpack": "^5.74.0"
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0"
   },
   "scripts": {
     "deploy": "gh-pages -d dist"
@@ -10,7 +12,6 @@
   "name": "cloth",
   "version": "1.0.0",
   "main": "webpack.config.js",
-  "devDependencies": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jackstanek/webpack-test.git"
@@ -22,5 +23,10 @@
     "url": "https://github.com/jackstanek/webpack-test/issues"
   },
   "homepage": "https://github.com/jackstanek/webpack-test#readme",
-  "description": ""
+  "description": "",
+  "devDependencies": {
+    "css-loader": "^6.7.1",
+    "style-loader": "^3.3.1",
+    "webpack-dev-server": "^4.11.1"
+  }
 }
