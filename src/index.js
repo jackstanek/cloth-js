@@ -1,5 +1,6 @@
 import {
     BoxGeometry,
+    BufferGeometry,
     DirectionalLight,
     Mesh,
     MeshStandardMaterial,
@@ -15,7 +16,8 @@ import { Cloth, Node, Spring } from './cloth.js'
 import './style.css'
 
 
-const GRAVITY = new Vector3(0, -10, 0);
+const GRAVITY = new Vector3(0, -1, 0);
+
 class SimpleOscillator {
     constructor(mass, length, stiffness, damping) {
         this.top = new Node(0, 0, mass);
@@ -55,16 +57,23 @@ const beginScene = (container) => {
     const stats = new Stats();
     container.appendChild(stats.dom);
 
-    const osc = new SimpleOscillator(1, 1, 10, 0.5);
+    const cloth = new Cloth(3, 12, 5, 10, 0.1, 1.1);
+    cloth.addForce(GRAVITY);
 
-    const material = new MeshStandardMaterial({color: 0x88D9E6});
-    const geometry = new BoxGeometry(1, 1, 1);
-    const mesh = new Mesh(geometry, material)
-    scene.add(mesh);
+    const material = new MeshStandardMaterial();
+    const meshes = [];
+    cloth.nodes.forEach(node => {
+        const geometry = new BoxGeometry(0.1, 0.1, 0.1);
+        const mesh = new Mesh(geometry, material);
+        mesh.position.copy(node.pos);
+
+        meshes.push(mesh);
+        scene.add(mesh);
+    });
 
     const light = new DirectionalLight(0xfff, 1);
     light.position.set(0, 10, 10);
-    light.target = mesh;
+    light.target = meshes[0];
     scene.add(light);
 
     const dt = 2;
@@ -80,13 +89,15 @@ const beginScene = (container) => {
 
         while (accumulator > 0) {
             const step = Math.min(accumulator, dt);
-            osc.update(step * 0.001);
+            cloth.update(step * 0.001);
             accumulator -= step;
         }
 
         stats.update();
 
-        mesh.position.copy(osc.bottom.pos);
+        for (let i = 0; i < meshes.length; i++) {
+            meshes[i].position.copy(cloth.nodes[i].pos);
+        }
         renderer.render(scene, camera);
         requestAnimationFrame(renderfn);
     }

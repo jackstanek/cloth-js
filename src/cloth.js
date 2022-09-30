@@ -9,6 +9,8 @@ export class Node {
         this.force = new Vector3();
         this.mass = mass;
         this.fixed = false;
+
+        this.normal = new Vector3(0, 0, 1);
     }
 
     addForce(vec) {
@@ -18,6 +20,7 @@ export class Node {
     applyForce(dt) {
         if (this.fixed) {
             this.force.set(0, 0, 0);
+            this.vel.set(0, 0, 0);
             return;
         }
         this.vel.add(this.force.multiplyScalar(dt / this.mass));
@@ -27,16 +30,16 @@ export class Node {
 }
 
 export class Spring {
-    constructor(end1, end2, length, stiffness, damping) {
+    constructor(end1, end2, length, stiffness, damping, maxDeformation) {
         this.ends = [end1, end2];
-        this.length = length;
+        this.restingLength = length;
+        this.maxLength = length * maxDeformation;
         this.stiffness = stiffness;
         this.damping = damping;
     }
 
     addForces() {
-        const currLen = this.ends[0].pos.distanceTo(
-            this.ends[1].pos);
+        const currLen = this.length()
         for (const endIdx of [0, 1]) {
             const otherIdx = (endIdx + 1) % 2;
             const springForceDir = this.ends[otherIdx].pos
@@ -44,7 +47,7 @@ export class Spring {
                 .sub(this.ends[endIdx].pos)
                 .normalize()
             const springForce = springForceDir
-                .multiplyScalar(this.stiffness * (currLen - this.length));  // Hooke's law
+                .multiplyScalar(this.stiffness * (currLen - this.restingLength));  // Hooke's law
             const dampingForce = this.ends[endIdx].vel
                 .clone()
                 .negate()
@@ -53,21 +56,55 @@ export class Spring {
             this.ends[endIdx].addForce(springForce.add(dampingForce));
         }
     }
+
+    length() {
+        return this.ends[0].pos.distanceTo(this.ends[1].pos);
+    }
+
+    shorten() {
+        const extraLen = (this.length() - this.maxLength);
+        if (extraLen > 0) {
+            for (const endIdx of [0, 1]) {
+                if (this.ends[endIdx].fixed) {
+                    continue;
+                }
+
+                const otherIdx = (endIdx + 1) % 2;
+                const adjDir = this.ends[otherIdx].pos
+                    .clone()
+                    .sub(this.ends[endIdx].pos)
+                    .normalize();
+                if (this.ends[otherIdx].fixed) {
+                    adjDir.multiplyScalar(extraLen);
+                } else {
+                    adjDir.multiplyScalar(extraLen / 2);
+                }
+                this.ends[endIdx].pos.add(adjDir);
+            }
+        }
+    }
 }
 
 export class Cloth {
-    constructor(sideLen, density, mass, stiffness, damping) {
+    constructor(sideLen, density, mass, stiffness, damping, maxDeformation) {
         this.sideLen = sideLen;
-
-        const nodeMass = mass / (density * density + 2 * density + 1);
         this.density = density;
+
         this.nodes = [];
         this.springs = [];
 
-        for (let y = 0; y < density + 1; y++) {
-            for (let x = 0; x < density + 1; x++) {
-                const newNode = new Node(x, y, nodeMass);
-                if (x == 0 && y == 0 || x == density - 1 && y == 0) {
+        this.extraForces = [];
+        this.meshes = [];
+
+        const xi = -(sideLen / 2);
+        const yi = sideLen / 2;
+        const inc = sideLen / density;
+        const nodeMass = mass / (density * density + 2 * density + 1);
+
+        for (let y = 0; y <= density; y++) {
+            for (let x = 0; x <= density; x++) {
+                const newNode = new Node(xi + x * inc, yi - y * inc, nodeMass);
+                if (x == 0 && y == 0 || x == density && y == 0) {
                     newNode.fixed = true;
                 }
                 this.nodes.push(newNode);
@@ -77,50 +114,56 @@ export class Cloth {
         const structSpringLen = sideLen / density;
         const shearSpringLen = structSpringLen * Math.sqrt(2);
 
-        for (let y = 0; y < density; y++) {
-            for (let x = 0; x < density; x++) {
+        for (let y = 0; y <= density; y++) {
+            for (let x = 0; x <= density; x++) {
                 const self = this.nodeAtPoint(x, y);
-                this.springs.push(new Spring(self, this.nodeAtPoint(x + 1, y),  // Right neighbor
-                    structSpringLen, stiffness, damping));
-                this.springs.push(new Spring(self, this.nodeAtPoint(x, y + 1),  // Below neighbor
-                    structSpringLen, stiffness, damping));
-                this.springs.push(new Spring(self, this.nodeAtPoint(x + 1, y + 1),  // Diagonal down neighbor
-                    shearSpringLen, stiffness, damping));
-                if (y > 0) {
+                if (x < density) {
+                    this.springs.push(new Spring(self, this.nodeAtPoint(x + 1, y),  // Right neighbor
+                        structSpringLen, stiffness, damping, maxDeformation));
+                }
+                if (y < density) {
+                    this.springs.push(new Spring(self, this.nodeAtPoint(x, y + 1),  // Below neighbor
+                        structSpringLen, stiffness, damping, maxDeformation));
+                }
+                if (x < density && y < density) {
+                    this.springs.push(new Spring(self, this.nodeAtPoint(x + 1, y + 1),  // Diagonal down neighbor
+                        shearSpringLen, stiffness, damping, maxDeformation));
+                }
+                if (y > 0 && x < density) {
                     this.springs.push(new Spring(self, this.nodeAtPoint(x + 1, y - 1),  // Diagonal up neighbor
-                        shearSpringLen, stiffness, damping));
+                        shearSpringLen, stiffness, damping, maxDeformation));
                 }
             }
         }
+    }
 
-        this.geometry = new PlaneGeometry(sideLen, sideLen, density, density);
+    shortenSprings() {
+        this.springs.forEach(spring => spring.shorten());
     }
 
     nodeAtPoint(x, y) {
-        return this.nodes[y * this.density + x];
+        return this.nodes[y * (this.density + 1) + x];
+    }
+
+    addForce(force) {
+        if (force instanceof Vector3) {
+            this.extraForces.push((_) => { return force; });
+        } else {
+            this.extraForces.push(force);
+        }
     }
 
     update(dt) {
-        for (const spring of this.springs) {
+        this.springs.forEach(spring => {
+            spring.shorten();
             spring.addForces()
-        }
+        });
 
-        for (const node of this.nodes) {
-            node.addForce(GRAVITY);
-            node.applyForce(dt)
-        }
-    }
+        this.nodes.forEach(node => {
+            this.extraForces.forEach(force => node.addForce(force(node)));
+            node.applyForce(dt);
+        });
 
-    updateGeometry() {
-        for (let y = 0; y < this.density + 1; y++) {
-            for (let x = 0; x < this.density + 1; x++) {
-                const node = this.nodeAtPoint(x, y);
-                const idx = 3 * (y * this.density + x);
-                this.geometry.attributes.position.array[idx] = node.x;
-                this.geometry.attributes.position.array[idx + 1] = node.y;
-                this.geometry.attributes.position.array[idx + 2] = node.z;
-            }
-        }
-        this.geometry.computeVertexNormals();
+        this.updateNormals();
     }
 }
