@@ -17,6 +17,7 @@ import './style.css'
 
 
 const GRAVITY = new Vector3(0, -1, 0);
+const WIND = new Vector3(10, 0, -0.1);
 
 class SimpleOscillator {
     constructor(mass, length, stiffness, damping) {
@@ -59,6 +60,10 @@ const beginScene = (container) => {
 
     const cloth = new Cloth(3, 12, 5, 10, 0.1, 1.1);
     cloth.addForce(GRAVITY);
+    cloth.addForce(node => {
+        const wind = WIND.clone().sub(node.vel).dot(node.normal);
+        return node.normal.clone().multiplyScalar(wind);
+    });
 
     const material = new MeshStandardMaterial();
     const meshes = [];

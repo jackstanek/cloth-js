@@ -17,6 +17,10 @@ export class Node {
         this.force.add(vec);
     }
 
+    updateNormal(norm) {
+        this.normal.copy(norm.normalize());
+    }
+
     applyForce(dt) {
         if (this.fixed) {
             this.force.set(0, 0, 0);
@@ -104,7 +108,7 @@ export class Cloth {
         for (let y = 0; y <= density; y++) {
             for (let x = 0; x <= density; x++) {
                 const newNode = new Node(xi + x * inc, yi - y * inc, nodeMass);
-                if (x == 0 && y == 0 || x == density && y == 0) {
+                if (x == 0) {
                     newNode.fixed = true;
                 }
                 this.nodes.push(newNode);
@@ -150,6 +154,34 @@ export class Cloth {
             this.extraForces.push((_) => { return force; });
         } else {
             this.extraForces.push(force);
+        }
+    }
+
+    updateNormals() {
+        for (let y = 0; y <= this.density; y++) {
+            for (let x = 0; x <= this.density; x++) {
+                let multiplier = -1;
+                const currNode = this.nodeAtPoint(x, y);
+                let horizNeighbor, vertNeighbor;
+
+                if (x == this.density) {
+                    multiplier *= -1;
+                    horizNeighbor = this.nodeAtPoint(x - 1, y);
+                } else {
+                    horizNeighbor = this.nodeAtPoint(x + 1, y);
+                }
+                const horiz = horizNeighbor.pos.clone().sub(currNode.pos);
+
+                if (y == this.density) {
+                    multiplier *= -1;
+                    vertNeighbor = this.nodeAtPoint(x, y - 1);
+                } else {
+                    vertNeighbor = this.nodeAtPoint(x, y + 1);
+                }
+                const vert = vertNeighbor.pos.clone().sub(currNode.pos);
+
+                currNode.updateNormal(horiz.cross(vert).multiplyScalar(multiplier));
+            }
         }
     }
 
