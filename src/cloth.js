@@ -1,6 +1,4 @@
-import { PlaneGeometry, Vector3 } from 'three';
-
-const GRAVITY = new Vector3(0, -9.8, 0);
+import { Vector3 } from 'three';
 
 export class Node {
     constructor(x, y, mass) {
@@ -93,6 +91,7 @@ export class Cloth {
     constructor(sideLen, density, mass, stiffness, damping, maxDeformation) {
         this.sideLen = sideLen;
         this.density = density;
+        this.density1 = density + 1;
 
         this.nodes = [];
         this.springs = [];
@@ -100,14 +99,13 @@ export class Cloth {
         this.extraForces = [];
         this.meshes = [];
 
-        const xi = -(sideLen / 2);
-        const yi = sideLen / 2;
+        const lenHalf = sideLen / 2;
         const inc = sideLen / density;
         const nodeMass = mass / (density * density + 2 * density + 1);
 
-        for (let y = 0; y <= density; y++) {
-            for (let x = 0; x <= density; x++) {
-                const newNode = new Node(xi + x * inc, yi - y * inc, nodeMass);
+        for (let y = 0; y < this.density1; y++) {
+            for (let x = 0; x < this.density1; x++) {
+                const newNode = new Node(x * inc - lenHalf, lenHalf - y * inc, nodeMass);
                 if (x == 0) {
                     newNode.fixed = true;
                 }
@@ -118,8 +116,8 @@ export class Cloth {
         const structSpringLen = sideLen / density;
         const shearSpringLen = structSpringLen * Math.sqrt(2);
 
-        for (let y = 0; y <= density; y++) {
-            for (let x = 0; x <= density; x++) {
+        for (let y = 0; y < this.density1; y++) {
+            for (let x = 0; x < this.density1; x++) {
                 const self = this.nodeAtPoint(x, y);
                 if (x < density) {
                     this.springs.push(new Spring(self, this.nodeAtPoint(x + 1, y),  // Right neighbor
@@ -146,7 +144,7 @@ export class Cloth {
     }
 
     nodeAtPoint(x, y) {
-        return this.nodes[y * (this.density + 1) + x];
+        return this.nodes[y * this.density1 + x];
     }
 
     addForce(force) {
@@ -158,8 +156,8 @@ export class Cloth {
     }
 
     updateNormals() {
-        for (let y = 0; y <= this.density; y++) {
-            for (let x = 0; x <= this.density; x++) {
+        for (let y = 0; y < this.density1; y++) {
+            for (let x = 0; x < this.density1; x++) {
                 let multiplier = -1;
                 const currNode = this.nodeAtPoint(x, y);
                 let horizNeighbor, vertNeighbor;
@@ -197,5 +195,19 @@ export class Cloth {
         });
 
         this.updateNormals();
+    }
+
+    updateGeometry(geometry) {
+        for (let yi = 0; yi < this.density1; yi++) {
+            for (let xi = 0; xi < this.density1; xi++) {
+                const pos = this.nodeAtPoint(xi, yi).pos;
+                geometry.attributes.position.array[(yi * this.density1 + xi) * 3 + 0] = pos.x;
+                geometry.attributes.position.array[(yi * this.density1 + xi) * 3 + 1] = pos.y;
+                geometry.attributes.position.array[(yi * this.density1 + xi) * 3 + 2] = pos.z;
+            }
+        }
+        geometry.computeVertexNormals();
+        geometry.computeBoundingBox();
+        geometry.attributes.position.needsUpdate = true;
     }
 }
