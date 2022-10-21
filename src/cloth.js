@@ -106,7 +106,7 @@ export class Cloth {
         for (let y = 0; y < this.density1; y++) {
             for (let x = 0; x < this.density1; x++) {
                 const newNode = new Node(x * inc - lenHalf, lenHalf - y * inc, nodeMass);
-                if (x == 0) {
+                if (y == 0) {
                     newNode.fixed = true;
                 }
                 this.nodes.push(newNode);
@@ -115,24 +115,33 @@ export class Cloth {
 
         const structSpringLen = sideLen / density;
         const shearSpringLen = structSpringLen * Math.sqrt(2);
+	const flexionSpringLen = structSpringLen * 2;
 
         for (let y = 0; y < this.density1; y++) {
             for (let x = 0; x < this.density1; x++) {
                 const self = this.nodeAtPoint(x, y);
                 if (x < density) {
-                    this.springs.push(new Spring(self, this.nodeAtPoint(x + 1, y),  // Right neighbor
+                    this.springs.push(new Spring(self, this.nodeAtPoint(x + 1, y),  // Right structural
                         structSpringLen, stiffness, damping, maxDeformation));
                 }
+		if (x < density - 1) {
+                    this.springs.push(new Spring(self, this.nodeAtPoint(x + 2, y),  // Right flexion
+                        flexionSpringLen, stiffness, damping, maxDeformation));
+		}    
                 if (y < density) {
-                    this.springs.push(new Spring(self, this.nodeAtPoint(x, y + 1),  // Below neighbor
+                    this.springs.push(new Spring(self, this.nodeAtPoint(x, y + 1),  // Below structural
                         structSpringLen, stiffness, damping, maxDeformation));
                 }
+		if (y < density - 1) {
+                    this.springs.push(new Spring(self, this.nodeAtPoint(x, y + 2),  // Below flexion
+                        flexionSpringLen, stiffness, damping, maxDeformation));
+		}
                 if (x < density && y < density) {
-                    this.springs.push(new Spring(self, this.nodeAtPoint(x + 1, y + 1),  // Diagonal down neighbor
+                    this.springs.push(new Spring(self, this.nodeAtPoint(x + 1, y + 1),  // Down shear
                         shearSpringLen, stiffness, damping, maxDeformation));
                 }
                 if (y > 0 && x < density) {
-                    this.springs.push(new Spring(self, this.nodeAtPoint(x + 1, y - 1),  // Diagonal up neighbor
+                    this.springs.push(new Spring(self, this.nodeAtPoint(x + 1, y - 1),  // Up shear
                         shearSpringLen, stiffness, damping, maxDeformation));
                 }
             }
