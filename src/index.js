@@ -65,10 +65,14 @@ const beginScene = (container) => {
 
     const ambientLight = new AmbientLight(0x404040);
     scene.add(ambientLight);
-    const light = new DirectionalLight();
-    light.target = clothMesh;
-    light.position.set(0, 10, 10);
-    scene.add(light);
+
+    const light_coords = [[10, 10, 10], [-10, 1, 10]];
+    for (const coords of light_coords) {
+	const light = new DirectionalLight(0xffffff, 1 / light_coords.length);
+	light.target = clothMesh;
+	light.position.set.apply(coords);
+	scene.add(light);
+    }
 
     const controls = new OrbitControls(camera, renderer.domElement);
     (() => {
