@@ -33,6 +33,7 @@ const beginScene = (container) => {
         1000
     );
     camera.position.z = 5;
+    scene.background = new Color(0x87CEEB);
 
     const renderer = new WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -47,7 +48,7 @@ const beginScene = (container) => {
     container.appendChild(stats.dom);
 
     const SIDELENGTH = 3;
-    const DENSITY = 30;
+    const DENSITY = 40;
     const cloth = new Cloth(SIDELENGTH, DENSITY, 10, 100, 0.05, 1.1);
     cloth.addForce(GRAVITY);
     cloth.addForce(node => {
@@ -56,7 +57,7 @@ const beginScene = (container) => {
     });
 
     const material = new MeshStandardMaterial({
-	color: new Color(0x55aaff),
+	color: new Color(0xB39C4D),
 	side: DoubleSide
     });
     const geom = new PlaneGeometry(SIDELENGTH, SIDELENGTH, DENSITY, DENSITY);
@@ -66,7 +67,7 @@ const beginScene = (container) => {
     const ambientLight = new AmbientLight(0x404040);
     scene.add(ambientLight);
 
-    const light_coords = [[10, 10, 10], [-10, 1, 10]];
+    const light_coords = [[0, 0, 100], [-100, 10, 100]];
     for (const coords of light_coords) {
 	const light = new DirectionalLight(0xffffff, 1 / light_coords.length);
 	light.target = clothMesh;
@@ -74,7 +75,7 @@ const beginScene = (container) => {
 	scene.add(light);
     }
 
-    const controls = new OrbitControls(camera, renderer.domElement);
+    const _ = new OrbitControls(camera, renderer.domElement);
     (() => {
 	const gui = new dat.GUI();
 	const windFolder = gui.addFolder('Wind');
