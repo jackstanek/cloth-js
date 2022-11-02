@@ -79,9 +79,9 @@ const beginScene = (container) => {
     (() => {
 	const gui = new dat.GUI();
 	const windFolder = gui.addFolder('Wind');
-	windFolder.add(WIND, 'x', -10, 10); 
-	windFolder.add(WIND, 'y', -10, 10); 
-	windFolder.add(WIND, 'z', -10, 10); 
+	windFolder.add(WIND, 'x', -10, 10, 1);
+	windFolder.add(WIND, 'y', -10, 10, 1).setValue(2);
+	windFolder.add(WIND, 'z', -10, 10, 1).setValue(1);
 	windFolder.open();
     })();
 
